@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
 
 export default function Contact() {
@@ -11,20 +10,41 @@ export default function Contact() {
   })
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate form submission
-    setTimeout(() => {
-      console.log("Form submitted:", formData)
-      setSubmitted(true)
-      setIsLoading(false)
-      setTimeout(() => {
+    setError("")
+
+    try {
+      const response = await fetch("http://localhost:3001/api/contact/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        console.log("Form submitted successfully:", formData)
+        setSubmitted(true)
+        // Reset form after successful submission
         setFormData({ name: "", email: "", message: "" })
-        setSubmitted(false)
-      }, 3000)
-    }, 800)
+        setTimeout(() => {
+          setSubmitted(false)
+        }, 5000)
+      } else {
+        throw new Error(data.error || "Failed to send message")
+      }
+    } catch (err: any) {
+      console.error("Error sending email:", err)
+      setError(err.message || "Failed to send message. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -89,6 +109,7 @@ export default function Contact() {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground placeholder-muted-foreground"
               required
+              disabled={isLoading}
             />
             <input
               type="email"
@@ -97,6 +118,7 @@ export default function Contact() {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground placeholder-muted-foreground"
               required
+              disabled={isLoading}
             />
             <textarea
               placeholder="Your Message"
@@ -105,16 +127,58 @@ export default function Contact() {
               rows={5}
               className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground placeholder-muted-foreground resize-none"
               required
+              disabled={isLoading}
             />
+
+            {/* Success Message */}
+            {submitted && (
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-green-600 text-sm font-medium">
+                  ✅ Message sent successfully! I'll get back to you soon.
+                </p>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-red-600 text-sm font-medium">
+                  ❌ {error}
+                </p>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold transition-all duration-300 ${
-                isLoading ? "opacity-70 cursor-not-allowed" : "hover:opacity-90 hover:shadow-lg hover:shadow-primary/30"
-              }`}
+              className={`w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold transition-all duration-300 ${isLoading
+                  ? "opacity-70 cursor-not-allowed"
+                  : submitted
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "hover:opacity-90 hover:shadow-lg hover:shadow-primary/30"
+                }`}
             >
-              {isLoading ? "Sending..." : submitted ? "Message Sent!" : "Send Message"}
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Sending...
+                </div>
+              ) : submitted ? (
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Message Sent!
+                </div>
+              ) : (
+                "Send Message"
+              )}
             </button>
+
+            {/* Additional info */}
+            <p className="text-xs text-foreground/60 text-center">
+              You'll receive a confirmation email after submitting the form.
+            </p>
           </form>
         </div>
       </div>
